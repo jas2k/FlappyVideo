@@ -2,7 +2,6 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <!-- Адаптация viewport: запрет зума, адаптация под ширину устройства -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FlappyMouse</title>
     <style>
@@ -10,47 +9,47 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            /* Отключаем выделение при тапах */
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
             background: #0a0a0a;
             font-family: 'Courier New', monospace;
-            overflow: hidden; /* Убираем скроллбар */
         }
 
         #gameCanvas {
-            border: 3px solid #000;
-            background: #000;
             display: block;
-            /* Адаптация размера */
-            width: 100%;
+            width: 100vw;
             height: 100vh;
-            max-width: 600px; /* Чтобы на ПК не было гигантским */
-            max-height: 800px;
-            object-fit: contain; /* Сохраняет пропорции игры */
+            background: #000;
+            position: relative;
+            z-index: 1;
         }
 
         #ui {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             color: #fff;
             pointer-events: none;
-            width: 100%; /* Чтобы текст центрировался корректно на узких экранах */
+            width: 90%;
+            z-index: 10;
+        }
+
+        #ui * {
+            pointer-events: none;
         }
 
         #startText {
-            font-size: 24px; /* Немного уменьшил для мобилок, но все равно читаемо */
+            font-size: 24px;
             margin-top: 5px;
             color: #fff;
             font-weight: bold;
@@ -62,7 +61,6 @@
             margin-bottom: 5px;
         }
 
-        /* Медиа-запрос для совсем маленьких экранов */
         @media (max-width: 400px) {
             #gameOver { font-size: 36px; }
             #startText { font-size: 18px; }
@@ -70,18 +68,20 @@
     </style>
 </head>
 <body>
-<!-- Размеры 600x800 - это внутреннее разрешение игры, CSS растянет его как картинку -->
-<canvas id="gameCanvas" width="600" height="800"></canvas>
+<canvas id="gameCanvas"></canvas>
 <div id="ui">
     <div id="gameOver" style="display: none;">GAME OVER</div>
     <div id="startText">PRESS TO START</div>
 </div>
 
 <script>
-    // Подключаем Telegram Web App (опционально, для расширения на весь экран)
+document.addEventListener('DOMContentLoaded', function() {
+    // Подключаем Telegram Web App
     if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
     }
 
     const canvas = document.getElementById('gameCanvas');
@@ -89,6 +89,7 @@
     const startTextEl = document.getElementById('startText');
     const gameOverEl = document.getElementById('gameOver');
 
+    // Игровые переменные
     let gameStarted = false;
     let gameOver = false;
     let score = 0;
@@ -97,7 +98,7 @@
     // Летучая мышь
     const bat = {
         x: 80,
-        y: canvas.height / 2,
+        y: window.innerHeight / 2,
         width: 50,
         height: 35,
         velocity: 0,
@@ -115,6 +116,21 @@
     const pipeSpeed = 3;
     let pipeTimer = 0;
     const pipeInterval = 80;
+
+    // Адаптация размера канваса под экран
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Обновляем позицию летучей мыши при изменении размера
+        if (!gameStarted) {
+            bat.y = canvas.height / 2;
+        }
+    }
+
+    // Начальная настройка размера
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     // Рисуем птицу в стиле Flappy Bird
     function drawBat() {
@@ -337,7 +353,7 @@
             ctx.font = 'bold 24px Courier New';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'alphabetic';
-            ctx.fillText('Score:' + score, 20, 40);
+            ctx.fillText('Score: ' + score, 20, 40);
         }
     }
 
@@ -367,12 +383,12 @@
             gameOverEl.style.display = 'none';
             // Создаем первые 3 трубы при старте с одинаковым расстоянием
             createPipe();
-            pipes[0].x = 350; // Первая труба
+            pipes[0].x = 350;
             createPipe();
-            pipes[1].x = 350 + 240; // Вторая труба (+240 пикселей)
+            pipes[1].x = 350 + 240;
             createPipe();
-            pipes[2].x = 350 + 480; // Третья труба (+240 пикселей)
-            pipeTimer = -80; // Отрицательное значение, чтобы следующая труба появилась не сразу
+            pipes[2].x = 350 + 480;
+            pipeTimer = -80;
         } else if (gameOver) {
             bat.y = canvas.height / 2;
             bat.velocity = 0;
@@ -393,7 +409,7 @@
             pipeTimer = -80;
         } else {
             bat.velocity = bat.jump;
-            bat.flapDuration = 10; // Длительность взмаха крыла
+            bat.flapDuration = 10;
         }
     }
 
@@ -405,21 +421,35 @@
         }
     });
 
-    // Обработка клика мыши
+    // Обработка клика мыши на canvas
     canvas.addEventListener('mousedown', (e) => {
-        // Чтобы не конфликтовало с тачем, проверяем тип события если нужно,
-        // но здесь достаточно простого вызова.
+        console.log('Canvas mousedown');
         jump();
     });
 
-    // Обработка касания (для мобильных)
+    // Обработка клика на всем документе (запасной вариант)
+    document.addEventListener('click', (e) => {
+        console.log('Document click');
+        jump();
+    });
+
+    // Обработка касания на canvas (для мобильных)
     canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Предотвращаем скролл и двойной тап-зум
+        e.preventDefault();
+        console.log('Canvas touchstart');
+        jump();
+    }, { passive: false });
+
+    // Обработка касания на документе (запасной вариант)
+    document.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        console.log('Document touchstart');
         jump();
     }, { passive: false });
 
     // Запуск игры
     gameLoop();
+});
 </script>
 </body>
 </html>

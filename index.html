@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const pipeGap = 170;
     const pipeSpeed = 3;
     let pipeTimer = 0;
-    const pipeInterval = 80;
+    const pipeInterval = 120; // Увеличено с 80 до 120 для большего расстояния между трубами
 
     // Адаптация размера канваса под экран
     function resizeCanvas() {
@@ -383,12 +383,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gameOverEl.style.display = 'none';
             // Создаем первые 3 трубы при старте с одинаковым расстоянием
             createPipe();
-            pipes[0].x = 350;
+            pipes[0].x = 400;
             createPipe();
-            pipes[1].x = 350 + 240;
+            pipes[1].x = 400 + 320;
             createPipe();
-            pipes[2].x = 350 + 480;
-            pipeTimer = -80;
+            pipes[2].x = 400 + 640;
+            pipeTimer = -120;
         } else if (gameOver) {
             bat.y = canvas.height / 2;
             bat.velocity = 0;
@@ -401,12 +401,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gameOverEl.style.display = 'none';
             // Создаем первые 3 трубы при рестарте
             createPipe();
-            pipes[0].x = 350;
+            pipes[0].x = 400;
             createPipe();
-            pipes[1].x = 350 + 240;
+            pipes[1].x = 400 + 320;
             createPipe();
-            pipes[2].x = 350 + 480;
-            pipeTimer = -80;
+            pipes[2].x = 400 + 640;
+            pipeTimer = -120;
         } else {
             bat.velocity = bat.jump;
             bat.flapDuration = 10;

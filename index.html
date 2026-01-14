@@ -43,7 +43,7 @@
             width: 90%;
             z-index: 10;
         }
-
+        
         #ui * {
             pointer-events: none;
         }
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 35,
         velocity: 0,
         gravity: 0.6,
-        jump: -10,
+        jump: -7.5,
         rotation: 0,
         wingFlap: 0,
         flapDuration: 0
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-
+        
         // Обновляем позицию летучей мыши при изменении размера
         if (!gameStarted) {
             bat.y = canvas.height / 2;

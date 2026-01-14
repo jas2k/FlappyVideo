@@ -43,7 +43,7 @@
             width: 90%;
             z-index: 10;
         }
-        
+
         #ui * {
             pointer-events: none;
         }
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        
+
         // Обновляем позицию летучей мыши при изменении размера
         if (!gameStarted) {
             bat.y = canvas.height / 2;
@@ -381,14 +381,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gameStarted = true;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            // Создаем первые 3 трубы при старте с одинаковым расстоянием
+            // Создаем первые 2 трубы при старте
             createPipe();
-            pipes[0].x = 350;
+            pipes[0].x = 400;
             createPipe();
-            pipes[1].x = 350 + 240;
-            createPipe();
-            pipes[2].x = 350 + 480;
-            pipeTimer = -80;
+            pipes[1].x = 400 + 280;
+            pipeTimer = 0;
         } else if (gameOver) {
             bat.y = canvas.height / 2;
             bat.velocity = 0;
@@ -399,14 +397,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gameStarted = true;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            // Создаем первые 3 трубы при рестарте
+            // Создаем первые 2 трубы при рестарте
             createPipe();
-            pipes[0].x = 350;
+            pipes[0].x = 400;
             createPipe();
-            pipes[1].x = 350 + 240;
-            createPipe();
-            pipes[2].x = 350 + 480;
-            pipeTimer = -80;
+            pipes[1].x = 400 + 280;
+            pipeTimer = 0;
         } else {
             bat.velocity = bat.jump;
             bat.flapDuration = 10;

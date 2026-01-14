@@ -2,66 +2,105 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FlappyMouse</title>
+    <!-- Подключаем SDK Telegram -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            /* Отключаем выделение текста на мобильных */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* Блокируем скролл */
             background: #0a0a0a;
             font-family: 'Courier New', monospace;
+            touch-action: none; /* Отключаем жесты браузера */
         }
 
         #gameCanvas {
-            border: 3px solid #000;
-            background: #000;
             display: block;
+            background: #000;
         }
 
         #ui {
             position: absolute;
-            top: 50%;
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             color: #fff;
             pointer-events: none;
+            width: 100%;
+            padding: 0 20px;
+            z-index: 10;
         }
 
         #startText {
             font-size: 24px;
-            margin-top: 5px;
+            margin-top: 10px;
             color: #fff;
             font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
         }
 
         #gameOver {
-            font-size: 48px;
+            font-size: 40px;
             font-weight: bold;
             margin-bottom: 5px;
+            text-shadow: 3px 3px 0 #000;
+            color: #ff4444;
         }
     </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="600" height="800"></canvas>
+<canvas id="gameCanvas"></canvas>
 <div id="ui">
     <div id="gameOver" style="display: none;">GAME OVER</div>
-    <div id="startText">PRESS TO START</div>
+    <div id="startText">TAP TO START</div>
 </div>
 
 <script>
+    // --- Инициализация Telegram Mini App ---
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand(); // Разворачиваем на весь экран
+    // Цвет хедера в цвет фона игры
+    tg.setHeaderColor('#0a0a0a');
+    tg.setBackgroundColor('#0a0a0a');
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const startTextEl = document.getElementById('startText');
     const gameOverEl = document.getElementById('gameOver');
+
+    // Настраиваем размер канваса под экран
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        // Обновляем позицию мыши при ресайзе, чтобы она не улетела
+        if (!gameStarted) {
+             bat.x = canvas.width * 0.15; // 15% от ширины
+             bat.y = canvas.height / 2;
+        } else {
+             bat.x = canvas.width * 0.15;
+        }
+    }
+
+    // Вызываем ресайз сразу и вешаем на событие (полезно при повороте экрана)
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     let gameStarted = false;
     let gameOver = false;
@@ -70,13 +109,13 @@
 
     // Летучая мышь
     const bat = {
-        x: 80,
+        x: canvas.width * 0.15, // Адаптивная позиция X
         y: canvas.height / 2,
-        width: 50,
-        height: 35,
+        width: 40,  // Чуть уменьшил для мобильных
+        height: 28,
         velocity: 0,
         gravity: 0.6,
-        jump: -10,
+        jump: -9, // Прыжок чуть слабее для баланса
         rotation: 0,
         wingFlap: 0,
         flapDuration: 0
@@ -84,13 +123,12 @@
 
     // Трубы
     const pipes = [];
-    const pipeWidth = 60;
-    const pipeGap = 170;
+    const pipeWidth = 50; // Чуть уже для мобильных
+    const pipeGap = 160;  // Зазор
     const pipeSpeed = 3;
     let pipeTimer = 0;
-    const pipeInterval = 80;
+    const pipeInterval = 90; // Интервал появления
 
-    // Рисуем птицу в стиле Flappy Bird
     function drawBat() {
         ctx.save();
         ctx.translate(bat.x, bat.y);
@@ -98,7 +136,6 @@
         const rot = Math.min(Math.max(bat.velocity * 0.05, -0.5), 0.5);
         ctx.rotate(rot);
 
-        // Крыло машет постоянно до старта, потом только при нажатии
         let wingFlap = 0;
         if (!gameStarted) {
             wingFlap = Math.sin(frameCount * 0.3) > 0 ? -8 : 8;
@@ -109,25 +146,26 @@
             wingFlap = 8;
         }
 
-        // Тело птицы (круглое) - белое
+        // Масштабирование отрисовки (0.8 от оригинала)
+        const scale = 0.8;
+        ctx.scale(scale, scale);
+
+        // Рисуем (код тот же, просто внутри scale)
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(0, 0, 12, 0, Math.PI * 2);
         ctx.fill();
 
-        // Черный животик
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.arc(2, 2, 8, 0, Math.PI * 2);
         ctx.fill();
 
-        // Крыло (простое, машет вверх-вниз) - белое
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.ellipse(-8, wingFlap, 10, 6, 0.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Клюв - белый
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.moveTo(10, -2);
@@ -136,19 +174,16 @@
         ctx.closePath();
         ctx.fill();
 
-        // Глаз (черный)
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.arc(4, -4, 4, 0, Math.PI * 2);
         ctx.fill();
 
-        // Зрачок - белый
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(5, -4, 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Хвост (один треугольник) - белый
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.moveTo(-12, -3);
@@ -157,7 +192,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // Лапки (маленькие) - белые
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -173,46 +207,36 @@
         ctx.restore();
     }
 
-    // Рисуем трубы
     function drawPipes() {
         pipes.forEach(pipe => {
             ctx.fillStyle = '#aaa';
-
             // Верхняя труба
             ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top - 30);
-
-            // Верхняя кромка
             ctx.fillRect(pipe.x - 5, pipe.top - 30, pipeWidth + 10, 30);
 
-            // Нижняя кромка
-            ctx.fillRect(pipe.x - 5, pipe.bottom, pipeWidth + 10, 30);
-
             // Нижняя труба
+            ctx.fillRect(pipe.x - 5, pipe.bottom, pipeWidth + 10, 30);
             ctx.fillRect(pipe.x, pipe.bottom + 30, pipeWidth, canvas.height - pipe.bottom - 30);
 
-            // Черные рамки
+            // Обводка
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 3;
-
-            // Рамка верхней трубы
             ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top - 30);
-
-            // Рамка верхней кромки
             ctx.strokeRect(pipe.x - 5, pipe.top - 30, pipeWidth + 10, 30);
-
-            // Рамка нижней кромки
             ctx.strokeRect(pipe.x - 5, pipe.bottom, pipeWidth + 10, 30);
-
-            // Рамка нижней трубы
             ctx.strokeRect(pipe.x, pipe.bottom + 30, pipeWidth, canvas.height - pipe.bottom - 30);
         });
     }
 
-    // Создаем трубу
     function createPipe() {
-        const minTop = 100;
+        const minTop = 50;
+        // Учитываем высоту экрана, чтобы не создавать непроходимые трубы
         const maxTop = canvas.height - pipeGap - 100;
-        const top = Math.random() * (maxTop - minTop) + minTop;
+
+        // Защита, если экран слишком низкий
+        const safeMaxTop = maxTop > minTop ? maxTop : minTop + 10;
+
+        const top = Math.random() * (safeMaxTop - minTop) + minTop;
 
         pipes.push({
             x: canvas.width,
@@ -222,7 +246,6 @@
         });
     }
 
-    // Обновляем трубы
     function updatePipes() {
         if (gameStarted && !gameOver) {
             pipeTimer++;
@@ -240,34 +263,35 @@
             if (!pipe.passed && pipe.x + pipeWidth < bat.x) {
                 pipe.passed = true;
                 score++;
+                // Вибрация при наборе очка (Haptic Feedback Telegram)
+                tg.HapticFeedback.impactOccurred('light');
             }
 
-            if (pipe.x + pipeWidth < 0) {
+            if (pipe.x + pipeWidth < -50) { // Удаляем, когда полностью ушла
                 pipes.splice(index, 1);
             }
         });
     }
 
-    // Проверка столкновений
     function checkCollision() {
         if (bat.y + bat.height / 2 > canvas.height || bat.y - bat.height / 2 < 0) {
             return true;
         }
 
         for (let pipe of pipes) {
-            if (bat.x + bat.width / 2 > pipe.x &&
-                bat.x - bat.width / 2 < pipe.x + pipeWidth) {
-                if (bat.y - bat.height / 2 < pipe.top ||
-                    bat.y + bat.height / 2 > pipe.bottom) {
+            // Упрощенная коллизия (хитбокс чуть меньше спрайта для приятной игры)
+            const padding = 4;
+            if (bat.x + bat.width / 2 - padding > pipe.x &&
+                bat.x - bat.width / 2 + padding < pipe.x + pipeWidth) {
+                if (bat.y - bat.height / 2 + padding < pipe.top ||
+                    bat.y + bat.height / 2 - padding > pipe.bottom) {
                     return true;
                 }
             }
         }
-
         return false;
     }
 
-    // Обновление игры
     function update() {
         if (gameStarted && !gameOver) {
             bat.velocity += bat.gravity;
@@ -277,20 +301,21 @@
 
             if (checkCollision()) {
                 gameOver = true;
+                // Вибрация при проигрыше
+                tg.HapticFeedback.notificationOccurred('error');
+
                 gameOverEl.style.display = 'block';
-                startTextEl.innerHTML = 'PRESS TO START';
+                startTextEl.innerHTML = 'TAP TO RESTART';
                 startTextEl.style.display = 'block';
             }
         }
     }
 
-    // Отрисовка
     function draw() {
-        // Фон - темный
         ctx.fillStyle = '#171717';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Облака - темные
+        // Облака
         ctx.fillStyle = '#333';
         for (let i = 0; i < 4; i++) {
             const x = (frameCount * 0.5 + i * 120) % (canvas.width + 80);
@@ -305,17 +330,14 @@
         drawPipes();
         drawBat();
 
-        // Счетчик на канвасе (только во время игры) - белый
         if (gameStarted) {
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 24px Courier New';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'alphabetic';
-            ctx.fillText('Score:' + score, 20, 40);
+            ctx.font = 'bold 30px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(score, canvas.width / 2, 80); // Счет по центру
         }
     }
 
-    // Игровой цикл с фиксированной частотой кадров (60 FPS)
     let lastTime = 0;
     const targetFPS = 60;
     const frameDelay = 1000 / targetFPS;
@@ -333,20 +355,21 @@
         }
     }
 
-    // Прыжок
     function jump() {
         if (!gameStarted) {
             gameStarted = true;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            // Создаем первые 3 трубы при старте с одинаковым расстоянием
-            createPipe();
-            pipes[0].x = 350; // Первая труба
-            createPipe();
-            pipes[1].x = 350 + 240; // Вторая труба (+240 пикселей)
-            createPipe();
-            pipes[2].x = 350 + 480; // Третья труба (+240 пикселей)
-            pipeTimer = -80; // Отрицательное значение, чтобы следующая труба появилась не сразу
+
+            // Расчет стартовых труб от текущей ширины
+            const startX = canvas.width + 100;
+            const dist = 240;
+
+            createPipe(); pipes[0].x = startX;
+            createPipe(); pipes[1].x = startX + dist;
+            createPipe(); pipes[2].x = startX + dist * 2;
+
+            pipeTimer = -80;
         } else if (gameOver) {
             bat.y = canvas.height / 2;
             bat.velocity = 0;
@@ -357,21 +380,26 @@
             gameStarted = true;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            // Создаем первые 3 трубы при рестарте
-            createPipe();
-            pipes[0].x = 350;
-            createPipe();
-            pipes[1].x = 350 + 240;
-            createPipe();
-            pipes[2].x = 350 + 480;
+
+            const startX = canvas.width + 100;
+            const dist = 240;
+
+            createPipe(); pipes[0].x = startX;
+            createPipe(); pipes[1].x = startX + dist;
+            createPipe(); pipes[2].x = startX + dist * 2;
+
             pipeTimer = -80;
         } else {
             bat.velocity = bat.jump;
-            bat.flapDuration = 10; // Длительность взмаха крыла
+            bat.flapDuration = 10;
+            // Легкая вибрация при прыжке
+            tg.HapticFeedback.impactOccurred('soft');
         }
     }
 
-    // События
+    // --- Обработчики событий ---
+
+    // ПК: Пробел
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
             e.preventDefault();
@@ -379,7 +407,23 @@
         }
     });
 
-    canvas.addEventListener('click', jump);
+    // ПК: Клик мышкой
+    canvas.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        jump();
+    });
+
+    // МОБИЛКИ: Касание пальцем
+    // touchstart срабатывает мгновенно, в отличие от click
+    window.addEventListener('touchstart', (e) => {
+        // e.preventDefault() предотвращает скролл и зум, а также эмуляцию мыши
+        // Но нам нужно разрешить системные жесты (например свайп закрытия mini app),
+        // если это не мешает игре. Здесь блокируем всё для простоты.
+        if(e.target === canvas || e.target.id === 'ui' || e.target.parentNode.id === 'ui') {
+             e.preventDefault();
+             jump();
+        }
+    }, { passive: false });
 
     // Запуск игры
     gameLoop();

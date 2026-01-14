@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const pipeGap = 170;
     const pipeSpeed = 3;
     let pipeTimer = 0;
-    const pipeInterval = 160; // Увеличено до 160 для еще большего расстояния
+    const pipeInterval = 80;
 
     // Адаптация размера канваса под экран
     function resizeCanvas() {
@@ -383,12 +383,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gameOverEl.style.display = 'none';
             // Создаем первые 3 трубы при старте с одинаковым расстоянием
             createPipe();
-            pipes[0].x = 450;
+            pipes[0].x = 350;
             createPipe();
-            pipes[1].x = 450 + 420;
+            pipes[1].x = 350 + 240;
             createPipe();
-            pipes[2].x = 450 + 840;
-            pipeTimer = -160;
+            pipes[2].x = 350 + 480;
+            pipeTimer = -80;
         } else if (gameOver) {
             bat.y = canvas.height / 2;
             bat.velocity = 0;
@@ -401,12 +401,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gameOverEl.style.display = 'none';
             // Создаем первые 3 трубы при рестарте
             createPipe();
-            pipes[0].x = 450;
+            pipes[0].x = 350;
             createPipe();
-            pipes[1].x = 450 + 420;
+            pipes[1].x = 350 + 240;
             createPipe();
-            pipes[2].x = 450 + 840;
-            pipeTimer = -160;
+            pipes[2].x = 350 + 480;
+            pipeTimer = -80;
         } else {
             bat.velocity = bat.jump;
             bat.flapDuration = 10;
@@ -421,29 +421,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Обработка клика мыши на canvas
-    canvas.addEventListener('mousedown', (e) => {
-        console.log('Canvas mousedown');
-        jump();
-    });
+    // Обработка клика
+    canvas.addEventListener('click', jump);
 
-    // Обработка клика на всем документе (запасной вариант)
-    document.addEventListener('click', (e) => {
-        console.log('Document click');
-        jump();
-    });
-
-    // Обработка касания на canvas (для мобильных)
+    // Обработка касания (для мобильных)
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        console.log('Canvas touchstart');
-        jump();
-    }, { passive: false });
-
-    // Обработка касания на документе (запасной вариант)
-    document.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        console.log('Document touchstart');
         jump();
     }, { passive: false });
 

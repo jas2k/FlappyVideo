@@ -102,8 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
         width: 50,
         height: 35,
         velocity: 0,
-        gravity: 0.6,
-        jump: -7.5,
+        gravity: 0.5,
+        jump: -8.5,
         rotation: 0,
         wingFlap: 0,
         flapDuration: 0
@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
             gameStarted = true;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            pipeTimer = 0;
+            pipeTimer = 60; // Первая труба появится через 20 кадров
         } else if (gameOver) {
             bat.y = canvas.height / 2;
             bat.velocity = 0;
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
             gameStarted = true;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            pipeTimer = 0;
+            pipeTimer = 60; // Первая труба появится через 20 кадров
         } else {
             bat.velocity = bat.jump;
             bat.flapDuration = 10;

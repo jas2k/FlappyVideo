@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <!-- Адаптация viewport: запрет зума, адаптация под ширину устройства -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FlappyMouse</title>
     <style>
@@ -9,25 +10,32 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            /* Отключаем выделение при тапах */
             -webkit-user-select: none;
             user-select: none;
-            -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку при тапе на Android */
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            width: 100vw;
-            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             background: #0a0a0a;
             font-family: 'Courier New', monospace;
-            overflow: hidden;
-            touch-action: none; /* Запрещает браузерные жесты (зум, скролл) */
+            overflow: hidden; /* Убираем скроллбар */
         }
 
         #gameCanvas {
-            display: block;
-            width: 100%;
-            height: 100%;
+            border: 3px solid #000;
             background: #000;
+            display: block;
+            /* Адаптация размера */
+            width: 100%;
+            height: 100vh;
+            max-width: 600px; /* Чтобы на ПК не было гигантским */
+            max-height: 800px;
+            object-fit: contain; /* Сохраняет пропорции игры */
         }
 
         #ui {
@@ -37,48 +45,43 @@
             transform: translate(-50%, -50%);
             text-align: center;
             color: #fff;
-            pointer-events: none; /* Клики проходят сквозь текст */
-            width: 100%;
-            z-index: 10;
+            pointer-events: none;
+            width: 100%; /* Чтобы текст центрировался корректно на узких экранах */
         }
 
         #startText {
-            font-size: 24px;
+            font-size: 24px; /* Немного уменьшил для мобилок, но все равно читаемо */
             margin-top: 5px;
             color: #fff;
             font-weight: bold;
-            text-shadow: 2px 2px 0 #000;
         }
 
         #gameOver {
             font-size: 48px;
             font-weight: bold;
             margin-bottom: 5px;
-            text-shadow: 4px 4px 0 #000;
         }
 
-        @media (max-width: 480px) {
+        /* Медиа-запрос для совсем маленьких экранов */
+        @media (max-width: 400px) {
             #gameOver { font-size: 36px; }
             #startText { font-size: 18px; }
         }
     </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
+<!-- Размеры 600x800 - это внутреннее разрешение игры, CSS растянет его как картинку -->
+<canvas id="gameCanvas" width="600" height="800"></canvas>
 <div id="ui">
     <div id="gameOver" style="display: none;">GAME OVER</div>
     <div id="startText">PRESS TO START</div>
 </div>
 
 <script>
-    // --- Инициализация Telegram Mini App ---
+    // Подключаем Telegram Web App (опционально, для расширения на весь экран)
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
-        try {
-            window.Telegram.WebApp.expand(); // Разворачиваем на весь экран
-        } catch (e) {
-            console.log("Expand not supported");
-        }
+        window.Telegram.WebApp.expand();
     }
 
     const canvas = document.getElementById('gameCanvas');
@@ -91,21 +94,7 @@
     let score = 0;
     let frameCount = 0;
 
-    // --- Адаптация разрешения ---
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        
-        // Центрируем мышь, если игра не идет
-        if (!gameStarted) {
-            bat.y = canvas.height / 2;
-        }
-    }
-    // Вызываем resize при загрузке и при изменении окна
-    window.addEventListener('resize', resize);
-    resize();
-
-    // --- Параметры игры ---
+    // Летучая мышь
     const bat = {
         x: 80,
         y: canvas.height / 2,
@@ -114,17 +103,20 @@
         velocity: 0,
         gravity: 0.6,
         jump: -10,
+        rotation: 0,
+        wingFlap: 0,
         flapDuration: 0
     };
 
+    // Трубы
     const pipes = [];
     const pipeWidth = 60;
-    const pipeGap = 170; // Размер дырки
-    const pipeSpeed = 3; // Скорость движения
+    const pipeGap = 170;
+    const pipeSpeed = 3;
     let pipeTimer = 0;
-    const pipeInterval = 80; // Частота спавна новых труб
+    const pipeInterval = 80;
 
-    // --- Отрисовка ---
+    // Рисуем птицу в стиле Flappy Bird
     function drawBat() {
         ctx.save();
         ctx.translate(bat.x, bat.y);
@@ -132,6 +124,7 @@
         const rot = Math.min(Math.max(bat.velocity * 0.05, -0.5), 0.5);
         ctx.rotate(rot);
 
+        // Крыло машет постоянно до старта, потом только при нажатии
         let wingFlap = 0;
         if (!gameStarted) {
             wingFlap = Math.sin(frameCount * 0.3) > 0 ? -8 : 8;
@@ -142,65 +135,110 @@
             wingFlap = 8;
         }
 
-        // Рисование птицы (тело, крылья, клюв, глаза, лапки)
-        // Тело
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
-        // Живот
-        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(2, 2, 8, 0, Math.PI * 2); ctx.fill();
-        // Крыло
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(-8, wingFlap, 10, 6, 0.3, 0, Math.PI * 2); ctx.fill();
-        // Клюв
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(10, -2); ctx.lineTo(16, 0); ctx.lineTo(10, 2); ctx.closePath(); ctx.fill();
-        // Глаз
-        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(4, -4, 4, 0, Math.PI * 2); ctx.fill();
-        // Зрачок
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(5, -4, 2, 0, Math.PI * 2); ctx.fill();
-        // Хвост
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-12, -3); ctx.lineTo(-18, 0); ctx.lineTo(-12, 3); ctx.closePath(); ctx.fill();
-        // Лапки
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-2, 10); ctx.lineTo(-2, 14); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(2, 10); ctx.lineTo(2, 14); ctx.stroke();
+        // Тело птицы (круглое) - белое
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Черный животик
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(2, 2, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Крыло (простое, машет вверх-вниз) - белое
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(-8, wingFlap, 10, 6, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Клюв - белый
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(10, -2);
+        ctx.lineTo(16, 0);
+        ctx.lineTo(10, 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Глаз (черный)
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(4, -4, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Зрачок - белый
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(5, -4, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Хвост (один треугольник) - белый
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(-12, -3);
+        ctx.lineTo(-18, 0);
+        ctx.lineTo(-12, 3);
+        ctx.closePath();
+        ctx.fill();
+
+        // Лапки (маленькие) - белые
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-2, 10);
+        ctx.lineTo(-2, 14);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(2, 10);
+        ctx.lineTo(2, 14);
+        ctx.stroke();
 
         ctx.restore();
     }
 
+    // Рисуем трубы
     function drawPipes() {
         pipes.forEach(pipe => {
             ctx.fillStyle = '#aaa';
+
+            // Верхняя труба
+            ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top - 30);
+
+            // Верхняя кромка
+            ctx.fillRect(pipe.x - 5, pipe.top - 30, pipeWidth + 10, 30);
+
+            // Нижняя кромка
+            ctx.fillRect(pipe.x - 5, pipe.bottom, pipeWidth + 10, 30);
+
+            // Нижняя труба
+            ctx.fillRect(pipe.x, pipe.bottom + 30, pipeWidth, canvas.height - pipe.bottom - 30);
+
+            // Черные рамки
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 3;
 
-            // Верхняя труба
-            let hTop = pipe.top - 30; // Высота тела трубы
-            ctx.fillRect(pipe.x, 0, pipeWidth, hTop);
-            ctx.strokeRect(pipe.x, 0, pipeWidth, hTop);
+            // Рамка верхней трубы
+            ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top - 30);
 
-            // Кромка верхней
-            ctx.fillRect(pipe.x - 5, hTop, pipeWidth + 10, 30);
-            ctx.strokeRect(pipe.x - 5, hTop, pipeWidth + 10, 30);
+            // Рамка верхней кромки
+            ctx.strokeRect(pipe.x - 5, pipe.top - 30, pipeWidth + 10, 30);
 
-            // Кромка нижней
-            ctx.fillRect(pipe.x - 5, pipe.bottom, pipeWidth + 10, 30);
+            // Рамка нижней кромки
             ctx.strokeRect(pipe.x - 5, pipe.bottom, pipeWidth + 10, 30);
 
-            // Нижняя труба
-            let yBottomBody = pipe.bottom + 30;
-            let hBottomBody = canvas.height - yBottomBody;
-            ctx.fillRect(pipe.x, yBottomBody, pipeWidth, hBottomBody);
-            ctx.strokeRect(pipe.x, yBottomBody, pipeWidth, hBottomBody);
+            // Рамка нижней трубы
+            ctx.strokeRect(pipe.x, pipe.bottom + 30, pipeWidth, canvas.height - pipe.bottom - 30);
         });
     }
 
-    // --- Логика ---
+    // Создаем трубу
     function createPipe() {
         const minTop = 100;
         const maxTop = canvas.height - pipeGap - 100;
-        
-        // Корректировка, если экран очень низкий
-        let safeMax = (maxTop > minTop) ? maxTop : minTop;
-        
-        const top = Math.random() * (safeMax - minTop) + minTop;
+        const top = Math.random() * (maxTop - minTop) + minTop;
 
         pipes.push({
             x: canvas.width,
@@ -210,6 +248,7 @@
         });
     }
 
+    // Обновляем трубы
     function updatePipes() {
         if (gameStarted && !gameOver) {
             pipeTimer++;
@@ -219,42 +258,49 @@
             }
         }
 
-        for (let i = pipes.length - 1; i >= 0; i--) {
-            let p = pipes[i];
+        pipes.forEach((pipe, index) => {
             if (gameStarted && !gameOver) {
-                p.x -= pipeSpeed;
+                pipe.x -= pipeSpeed;
             }
-            if (!p.passed && p.x + pipeWidth < bat.x) {
-                p.passed = true;
+
+            if (!pipe.passed && pipe.x + pipeWidth < bat.x) {
+                pipe.passed = true;
                 score++;
             }
-            if (p.x + pipeWidth < 0) {
-                pipes.splice(i, 1);
+
+            if (pipe.x + pipeWidth < 0) {
+                pipes.splice(index, 1);
             }
-        }
+        });
     }
 
+    // Проверка столкновений
     function checkCollision() {
-        // Удар об пол или потолок
         if (bat.y + bat.height / 2 > canvas.height || bat.y - bat.height / 2 < 0) {
             return true;
         }
-        // Удар об трубы
-        for (let p of pipes) {
-            if (bat.x + bat.width / 2 > p.x && bat.x - bat.width / 2 < p.x + pipeWidth) {
-                if (bat.y - bat.height / 2 < p.top || bat.y + bat.height / 2 > p.bottom) {
+
+        for (let pipe of pipes) {
+            if (bat.x + bat.width / 2 > pipe.x &&
+                bat.x - bat.width / 2 < pipe.x + pipeWidth) {
+                if (bat.y - bat.height / 2 < pipe.top ||
+                    bat.y + bat.height / 2 > pipe.bottom) {
                     return true;
                 }
             }
         }
+
         return false;
     }
 
+    // Обновление игры
     function update() {
         if (gameStarted && !gameOver) {
             bat.velocity += bat.gravity;
             bat.y += bat.velocity;
+
             updatePipes();
+
             if (checkCollision()) {
                 gameOver = true;
                 gameOverEl.style.display = 'block';
@@ -264,16 +310,17 @@
         }
     }
 
+    // Отрисовка
     function draw() {
-        // Фон
+        // Фон - темный
         ctx.fillStyle = '#171717';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Облака
+        // Облака - темные
         ctx.fillStyle = '#333';
-        for (let i = 0; i < 6; i++) {
-            const x = (frameCount * 0.5 + i * 150) % (canvas.width + 100) - 50;
-            const y = 60 + (i % 3) * 40;
+        for (let i = 0; i < 4; i++) {
+            const x = (frameCount * 0.5 + i * 120) % (canvas.width + 80);
+            const y = 60 + i * 40;
             ctx.beginPath();
             ctx.arc(x, y, 18, 0, Math.PI * 2);
             ctx.arc(x + 18, y, 22, 0, Math.PI * 2);
@@ -284,101 +331,95 @@
         drawPipes();
         drawBat();
 
+        // Счетчик на канвасе (только во время игры) - белый
         if (gameStarted) {
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 24px Courier New';
             ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
             ctx.fillText('Score:' + score, 20, 40);
         }
     }
 
-    // --- Игровой цикл ---
+    // Игровой цикл с фиксированной частотой кадров (60 FPS)
     let lastTime = 0;
-    const fps = 60;
-    const interval = 1000 / fps;
+    const targetFPS = 60;
+    const frameDelay = 1000 / targetFPS;
 
     function gameLoop(currentTime) {
         requestAnimationFrame(gameLoop);
-        const delta = currentTime - lastTime;
-        if (delta > interval) {
-            lastTime = currentTime - (delta % interval);
+
+        const deltaTime = currentTime - lastTime;
+
+        if (deltaTime >= frameDelay) {
+            lastTime = currentTime - (deltaTime % frameDelay);
             update();
             draw();
             frameCount++;
         }
     }
-    gameLoop(0);
 
-    // --- Управление ---
-    
-    // Основная функция действия
-    function action() {
+    // Прыжок
+    function jump() {
         if (!gameStarted) {
-            // Старт игры: сбрасываем состояние и генерируем трубы вперед
             gameStarted = true;
-            gameOver = false;
             startTextEl.style.display = 'none';
             gameOverEl.style.display = 'none';
-            score = 0;
-            pipes.length = 0;
-            bat.y = canvas.height / 2;
-            bat.velocity = bat.jump;
-            
-            // Заполняем экран трубами сразу, чтобы не было пустоты
-            let spawnX = 350;
-            while(spawnX < canvas.width + 100) {
-                createPipe();
-                pipes[pipes.length - 1].x = spawnX;
-                spawnX += 240; // 3px speed * 80 frames
-            }
-            // Вычисляем таймер для следующей трубы
-            let dist = spawnX - canvas.width;
-            pipeTimer = pipeInterval - (dist / pipeSpeed);
-            
+            // Создаем первые 3 трубы при старте с одинаковым расстоянием
+            createPipe();
+            pipes[0].x = 350; // Первая труба
+            createPipe();
+            pipes[1].x = 350 + 240; // Вторая труба (+240 пикселей)
+            createPipe();
+            pipes[2].x = 350 + 480; // Третья труба (+240 пикселей)
+            pipeTimer = -80; // Отрицательное значение, чтобы следующая труба появилась не сразу
         } else if (gameOver) {
-            // Рестарт: просто сбрасываем флаги, действие будет при следующем клике
-            gameStarted = false;
-            gameOver = false;
-            // Возвращаем UI в исходное состояние
-            startTextEl.innerHTML = 'PRESS TO START';
-            gameOverEl.style.display = 'none';
-            startTextEl.style.display = 'block';
-            pipes.length = 0;
             bat.y = canvas.height / 2;
-            draw(); // Перерисовать сразу, чтобы убрать надпись Game Over
+            bat.velocity = 0;
+            bat.flapDuration = 0;
+            pipes.length = 0;
+            score = 0;
+            gameOver = false;
+            gameStarted = true;
+            startTextEl.style.display = 'none';
+            gameOverEl.style.display = 'none';
+            // Создаем первые 3 трубы при рестарте
+            createPipe();
+            pipes[0].x = 350;
+            createPipe();
+            pipes[1].x = 350 + 240;
+            createPipe();
+            pipes[2].x = 350 + 480;
+            pipeTimer = -80;
         } else {
-            // Прыжок
             bat.velocity = bat.jump;
-            bat.flapDuration = 10;
+            bat.flapDuration = 10; // Длительность взмаха крыла
         }
     }
 
-    // Универсальный обработчик ввода
-    function handleInput(e) {
-        // Если это клавиатура, реагируем только на Пробел
-        if (e.type === 'keydown') {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                action();
-            }
-            return;
+    // События
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            jump();
         }
+    });
 
-        // Для мыши/тача (pointerdown)
-        if (e.type === 'pointerdown') {
-            // Проверка на левую кнопку мыши (button 0), для тача это всегда 0
-            if (e.button === 0) {
-                e.preventDefault(); // Блокируем зум/скролл
-                action();
-            }
-        }
-    }
+    // Обработка клика мыши
+    canvas.addEventListener('mousedown', (e) => {
+        // Чтобы не конфликтовало с тачем, проверяем тип события если нужно,
+        // но здесь достаточно простого вызова.
+        jump();
+    });
 
-    // Вешаем слушатели на window, чтобы ловить клики везде
-    window.addEventListener('keydown', handleInput);
-    // pointerdown ловит и мышь, и палец. Это современный стандарт.
-    window.addEventListener('pointerdown', handleInput, { passive: false });
+    // Обработка касания (для мобильных)
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Предотвращаем скролл и двойной тап-зум
+        jump();
+    }, { passive: false });
 
+    // Запуск игры
+    gameLoop();
 </script>
 </body>
 </html>
